@@ -134,6 +134,9 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
 
                 await event.edit(text=text, attachments=[kb.as_markup()])
 
+            await event.answer()
+            return
+
         elif action == "clear_5":
             delete_last_activities(5)
             await event.answer(notification="✅ Последние 5 действий удалены!")
@@ -217,6 +220,8 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 text=text,
                 attachments=[get_admin_keyboard().as_markup()],
             )
+            await event.answer()
+            return
 
         await event.answer()
 
