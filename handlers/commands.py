@@ -1,0 +1,55 @@
+"""Обработчики команд /start, /help, /version."""
+
+import logging
+from maxapi import Dispatcher, F
+from maxapi.types import MessageCreated, BotStarted, Command
+
+from config import Config
+
+logger = logging.getLogger(__name__)
+
+CHANGELOG = (
+    "v3.1.0 -- Портировано на MAX API\n"
+    "v3.0.0 -- Рефакторинг: модульная архитектура, безопасность, логирование\n"
+    "v2.0.0 -- Production Ready: многопоточность, rate limiting, автоочистка\n"
+    "v1.5.2 -- Автоисправление ошибки OCR\n"
+    "v1.5.0 -- Умный фильтр текста\n"
+    "v1.2.0 -- Генерация баркода после фото\n"
+    "v1.1.0 -- Чтение ШК/QR с фото"
+)
+
+HELP_TEXT = (
+    "Привет! Я умею находить штрих-коды и текст на фото и генерировать новые!\n\n"
+    "Читать штрих-коды\n"
+    "Просто отправь мне фото или скан.\n"
+    "Я найду на нём штрих-коды или текст и выдам результат.\n\n"
+    "Создать штрих-код\n"
+    "Отправь любой текст (латиницу или цифры), и я сделаю из него штрих-код.\n\n"
+    "Команды:\n"
+    "/version -- версия бота\n"
+    "/help -- эта справка"
+)
+
+
+def register(dp: Dispatcher, config: Config) -> None:
+    @dp.bot_started()
+    async def handle_bot_started(event: BotStarted):
+        await bot_send(event, HELP_TEXT)
+
+    @dp.message_created(Command("version"))
+    async def send_version(event: MessageCreated):
+        text = (
+            f"Версия бота: {config.version}\n\n"
+            f"История изменений:\n{CHANGELOG}"
+        )
+        await event.message.answer(text)
+
+    @dp.message_created(Command("start", "help"))
+    async def send_welcome(event: MessageCreated):
+        await event.message.answer(HELP_TEXT)
+
+    logger.info("Обработчики команд зарегистрированы")
+
+
+async def bot_send(event, text):
+    await event.bot.send_message(chat_id=event.chat_id, text=text)
