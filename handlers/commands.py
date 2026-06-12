@@ -27,6 +27,7 @@ HELP_TEXT = (
     "Отправь любой текст (латиницу или цифры), и я сделаю из него штрих-код.\n\n"
     "Команды:\n"
     "/version -- версия бота\n"
+    "/myid -- твой user_id\n"
     "/help -- эта справка"
 )
 
@@ -47,6 +48,11 @@ def register(dp: Dispatcher, config: Config) -> None:
     @dp.message_created(Command("start", "help"))
     async def send_welcome(event: MessageCreated):
         await event.message.answer(HELP_TEXT)
+
+    @dp.message_created(Command("myid"))
+    async def send_myid(event: MessageCreated):
+        user_id = event.message.sender.user_id if event.message.sender else "неизвестен"
+        await event.message.answer(f"Твой user_id: {user_id}")
 
     logger.info("Обработчики команд зарегистрированы")
 

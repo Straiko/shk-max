@@ -10,8 +10,9 @@ import logging
 from dotenv import load_dotenv
 from maxapi import Bot, Dispatcher
 
-from handlers import commands, photo, barcode
+from handlers import commands, photo, barcode, admin
 from utils.rate_limiter import RateLimiter
+from utils.db import init_db
 from config import load_config
 
 
@@ -35,10 +36,13 @@ async def main() -> None:
     config = load_config()
     logger.info("Бот v%s запускается...", config.version)
 
+    init_db()
+
     bot = Bot()
     dp = Dispatcher()
     limiter = RateLimiter(config.rate_limit_seconds)
 
+    admin.register(dp, config, limiter)
     commands.register(dp, config)
     photo.register(dp, config, limiter)
     barcode.register(dp, config, limiter)
