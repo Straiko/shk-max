@@ -2,11 +2,10 @@
 
 import logging
 import aiohttp
-from io import BytesIO
 from PIL import Image
 
 from maxapi import Dispatcher, F
-from maxapi.types import MessageCreated, InputMediaBuffer
+from maxapi.types import MessageCreated
 
 from config import Config
 from services.scanner import scan_barcodes
@@ -25,15 +24,15 @@ async def download_photo(bot, message) -> bytes | None:
         return None
 
     for att in attachments:
-        att_type = att.get("type") if isinstance(att, dict) else getattr(att, "type", None)
+        att_type = getattr(att, "type", None)
         if att_type != "image":
             continue
 
-        payload = att.get("payload") if isinstance(att, dict) else getattr(att, "payload", None)
+        payload = getattr(att, "payload", None)
         if not payload:
             continue
 
-        url = payload.get("url") if isinstance(payload, dict) else getattr(payload, "url", None)
+        url = getattr(payload, "url", None)
         if not url:
             continue
 
@@ -66,12 +65,12 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
     @rate_limit(limiter)
     async def handle_photo(event: MessageCreated):
         message = event.message
-        chat_id = event.chat_id
+        chat_id = event.chat.chat_id
         attachments = message.body.attachments
 
         has_image = False
         for att in attachments:
-            att_type = att.get("type") if isinstance(att, dict) else getattr(att, "type", None)
+            att_type = getattr(att, "type", None)
             if att_type == "image":
                 has_image = True
                 break
@@ -122,6 +121,6 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
 
             except Exception as e:
                 await event.message.answer("Ошибка при обработке фото.")
-                logger.exception("Ошибка обработки фото для user")
+                logger.exception("Ошибка обработки фото")
 
     logger.info("Обработчик фото зарегистрирован")

@@ -44,7 +44,7 @@ def register(dp: Dispatcher, config: Config, limiter) -> None:
         if not text_to_encode or text_to_encode.startswith("/"):
             return
 
-        chat_id = event.chat_id
+        chat_id = event.chat.chat_id
         await event.bot.send_action(chat_id=chat_id, action="typing")
         await send_barcode_image(event.bot, chat_id, text_to_encode)
 

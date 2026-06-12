@@ -35,7 +35,11 @@ def rate_limit(limiter: RateLimiter) -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(event, *args, **kwargs):
-            user_id = event.message.sender.user_id if hasattr(event, "message") and hasattr(event.message, "sender") else None
+            try:
+                sender = event.message.sender
+                user_id = sender.user_id if sender else None
+            except Exception:
+                user_id = None
             if user_id and not limiter.is_allowed(user_id):
                 await event.message.answer("Подожди немного, не спеши!")
                 return None
