@@ -1,7 +1,6 @@
 """Генерация штрих-кодов."""
 
 import logging
-from io import BytesIO
 
 from maxapi import Dispatcher, F
 from maxapi.types import MessageCreated, InputMediaBuffer
@@ -11,7 +10,6 @@ from barcode.writer import ImageWriter
 
 from config import Config
 from utils.file_manager import temp_image
-from utils.rate_limiter import RateLimiter, rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +37,8 @@ async def send_barcode_image(bot, chat_id: int, text_to_encode: str) -> None:
         logger.exception("Ошибка генерации для chat %d", chat_id)
 
 
-def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
+def register(dp: Dispatcher, config: Config, limiter) -> None:
     @dp.message_created(F.message.body.text)
-    @rate_limit(limiter)
     async def generate_and_send_barcode(event: MessageCreated):
         text_to_encode = event.message.body.text.strip()
         if not text_to_encode or text_to_encode.startswith("/"):
