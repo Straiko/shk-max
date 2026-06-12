@@ -40,8 +40,10 @@ def get_admin_keyboard() -> InlineKeyboardBuilder:
 def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
     """Регистрация команды /admin и её кнопок."""
 
-    def is_admin(user_id: int) -> bool:
-        return config.admin_user_id and user_id == config.admin_user_id
+    def is_admin(user_id) -> bool:
+        if not config.admin_user_id or user_id is None:
+            return False
+        return int(user_id) == config.admin_user_id
 
     @dp.message_created(Command("admin"))
     @rate_limit(limiter)
