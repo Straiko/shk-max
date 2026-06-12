@@ -191,12 +191,42 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
             kb = InlineKeyboardBuilder()
             kb.row(CallbackButton(text="⬅️ Назад в действия", payload=AdminPayload(action="activity").pack()))
 
+            chat_id = event.message.recipient.chat_id if event.message else None
             await event.answer()
-            await event.bot.send_message(
-                chat_id=event.message.recipient.chat_id if event.message else None,
-                user_id=user_id,
-                text=f"📝 Лог #{act_id}: {row.get('details', '')}",
-            )
+
+            photo_url = row['file_id']
+            if photo_url and photo_url.startswith("http"):
+                import aiohttp
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(photo_url) as resp:
+                            if resp.status == 200:
+                                photo_bytes = await resp.read()
+                                from maxapi.types import InputMediaBuffer
+                                await event.bot.send_message(
+                                    chat_id=chat_id,
+                                    user_id=user_id,
+                                    text=f"📝 Лог #{act_id}: {row.get('details', '')}",
+                                    attachments=[InputMediaBuffer(buffer=photo_bytes, filename="photo.jpg")],
+                                )
+                            else:
+                                await event.bot.send_message(
+                                    chat_id=chat_id,
+                                    user_id=user_id,
+                                    text=f"📝 Лог #{act_id}: {row.get('details', '')}\n🔗 {photo_url}",
+                                )
+                except Exception:
+                    await event.bot.send_message(
+                        chat_id=chat_id,
+                        user_id=user_id,
+                        text=f"📝 Лог #{act_id}: {row.get('details', '')}\n🔗 {photo_url}",
+                    )
+            else:
+                await event.bot.send_message(
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    text=f"📝 Лог #{act_id}: {row.get('details', '')}",
+                )
             return
 
         elif action == "users":

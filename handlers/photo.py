@@ -18,11 +18,11 @@ from utils.db import log_activity
 logger = logging.getLogger(__name__)
 
 
-async def download_photo(bot, message) -> bytes | None:
-    """Скачать фото из сообщения MAX."""
+async def download_photo(bot, message) -> tuple[bytes | None, str | None]:
+    """Скачать фото из сообщения MAX. Возвращает (bytes, url)."""
     attachments = message.body.attachments
     if not attachments:
-        return None
+        return None, None
 
     for att in attachments:
         att_type = getattr(att, "type", None)
@@ -41,12 +41,12 @@ async def download_photo(bot, message) -> bytes | None:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
                     if resp.status == 200:
-                        return await resp.read()
+                        return await resp.read(), url
         except Exception:
             logger.exception("Ошибка скачивания фото")
-            return None
+            return None, None
 
-    return None
+    return None, None
 
 
 def _format_reply(codes: list[str], chosen: str) -> str:
@@ -81,7 +81,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
 
         await event.bot.send_action(chat_id=chat_id, action="typing_on")
 
-        photo_bytes = await download_photo(event.bot, message)
+        photo_bytes, photo_url = await download_photo(event.bot, message)
         if photo_bytes is None:
             await event.message.answer("Не удалось скачать фото. Попробуй ещё раз.")
             return
@@ -127,7 +127,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                     'first_name': getattr(sender, 'first_name', None),
                     'last_name': getattr(sender, 'last_name', None),
                 })()
-                log_activity(user_obj, "photo", f"Найдено: {chosen}")
+                log_activity(user_obj, "photo", f"Найдено: {chosen}", file_id=photo_url)
 
             except Exception as e:
                 await event.message.answer("Ошибка при обработке фото.")
