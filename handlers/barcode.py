@@ -45,7 +45,7 @@ def register(dp: Dispatcher, config: Config, limiter) -> None:
             return
 
         chat_id = event.chat.chat_id
-        await event.bot.send_action(chat_id=chat_id, action="typing")
+        await event.bot.send_action(chat_id=chat_id, action="typing_on")
         await send_barcode_image(event.bot, chat_id, text_to_encode)
 
     logger.info("Обработчик генерации штрих-кодов зарегистрирован")

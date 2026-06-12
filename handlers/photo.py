@@ -78,7 +78,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
         if not has_image:
             return
 
-        await event.bot.send_action(chat_id=chat_id, action="typing")
+        await event.bot.send_action(chat_id=chat_id, action="typing_on")
 
         photo_bytes = await download_photo(event.bot, message)
         if photo_bytes is None:
