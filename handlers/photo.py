@@ -13,6 +13,7 @@ from services.ocr import scan_text_ocr
 from handlers.barcode import send_barcode_image
 from utils.file_manager import temp_image
 from utils.rate_limiter import RateLimiter, rate_limit
+from utils.db import log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,15 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 reply = _format_reply(codes, chosen)
                 await event.message.answer(reply)
                 await send_barcode_image(event.bot, chat_id, chosen)
+
+                sender = message.sender
+                user_obj = type('User', (), {
+                    'id': getattr(sender, 'user_id', None),
+                    'username': getattr(sender, 'username', None),
+                    'first_name': getattr(sender, 'first_name', None),
+                    'last_name': getattr(sender, 'last_name', None),
+                })()
+                log_activity(user_obj, "photo", f"Найдено: {chosen}")
 
             except Exception as e:
                 await event.message.answer("Ошибка при обработке фото.")

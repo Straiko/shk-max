@@ -5,6 +5,7 @@ from maxapi import Dispatcher, F
 from maxapi.types import MessageCreated, BotStarted, Command
 
 from config import Config
+from utils.db import log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,14 @@ def register(dp: Dispatcher, config: Config) -> None:
     @dp.message_created(Command("start", "help"))
     async def send_welcome(event: MessageCreated):
         await event.message.answer(HELP_TEXT)
+        sender = event.message.sender
+        user_obj = type('User', (), {
+            'id': getattr(sender, 'user_id', None),
+            'username': getattr(sender, 'username', None),
+            'first_name': getattr(sender, 'first_name', None),
+            'last_name': getattr(sender, 'last_name', None),
+        })()
+        log_activity(user_obj, "command", "/start или /help")
 
     @dp.message_created(Command("myid"))
     async def send_myid(event: MessageCreated):

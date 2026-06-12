@@ -10,6 +10,7 @@ from barcode.writer import ImageWriter
 
 from config import Config
 from utils.file_manager import temp_image
+from utils.db import log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -47,5 +48,14 @@ def register(dp: Dispatcher, config: Config, limiter) -> None:
         chat_id = event.chat.chat_id
         await event.bot.send_action(chat_id=chat_id, action="typing_on")
         await send_barcode_image(event.bot, chat_id, text_to_encode)
+
+        sender = event.message.sender
+        user_obj = type('User', (), {
+            'id': getattr(sender, 'user_id', None),
+            'username': getattr(sender, 'username', None),
+            'first_name': getattr(sender, 'first_name', None),
+            'last_name': getattr(sender, 'last_name', None),
+        })()
+        log_activity(user_obj, "barcode", f"Создан: {text_to_encode}")
 
     logger.info("Обработчик генерации штрих-кодов зарегистрирован")
