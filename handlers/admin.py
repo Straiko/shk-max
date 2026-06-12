@@ -5,7 +5,6 @@ import logging
 from maxapi import Dispatcher, F
 from maxapi.types import MessageCreated, Command, MessageCallback
 from maxapi.types.attachments.buttons.callback_button import CallbackButton
-from maxapi.filters.callback_payload import CallbackPayload
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 from config import Config
@@ -18,23 +17,53 @@ from utils.db import (
 logger = logging.getLogger(__name__)
 
 
-class AdminPayload(CallbackPayload, prefix="admin"):
-    """Payload для кнопок админ-панели."""
-    action: str
-
-
 def get_admin_keyboard() -> InlineKeyboardBuilder:
     """Создает клавиатуру (меню) админки."""
     kb = InlineKeyboardBuilder()
     kb.row(
-        CallbackButton(text="📊 Статистика", payload=AdminPayload(action="stats").pack()),
-        CallbackButton(text="📝 Действия", payload=AdminPayload(action="activity").pack()),
+        CallbackButton(text="📊 Статистика", payload="admin_stats"),
+        CallbackButton(text="📝 Действия", payload="admin_activity"),
     )
     kb.row(
-        CallbackButton(text="👥 Пользователи", payload=AdminPayload(action="users").pack()),
-        CallbackButton(text="❌ Закрыть", payload=AdminPayload(action="close").pack()),
+        CallbackButton(text="👥 Пользователи", payload="admin_users"),
+        CallbackButton(text="❌ Закрыть", payload="admin_close"),
     )
     return kb
+
+
+def _format_activity_list(activity: list[dict]) -> tuple[str, InlineKeyboardBuilder]:
+    """Форматирует список активности. Возвращает (text, keyboard)."""
+    kb = InlineKeyboardBuilder()
+    if not activity:
+        return "📝 Последние действия:\n\nПусто.", kb
+
+    lines = []
+    photo_buttons = []
+
+    for a in activity:
+        time_str = a['timestamp'][11:19] if a['timestamp'] else "??:??:??"
+        name = a.get('first_name') or a.get('username') or "Без имени"
+        act_icon = "📷" if "photo" in (a['action'] or "") else "📝"
+        details = a.get('details') or "Нет данных"
+
+        if a.get('file_id'):
+            lines.append(f"{time_str} | {act_icon} {name[:12]} (Акт #{a['id']})\n  {details}")
+            photo_buttons.append(
+                CallbackButton(text=f"📸 #{a['id']}", payload=f"admin_photo_{a['id']}")
+            )
+        else:
+            lines.append(f"{time_str} | {act_icon} {name[:12]}\n  {details}")
+
+    text = "📝 Последние 50 действий:\n\n" + "\n\n".join(lines)
+    if len(text) > 4000:
+        text = text[:4000] + "\n... (обрезано)"
+
+    for i in range(0, len(photo_buttons), 5):
+        kb.row(*photo_buttons[i:i + 5])
+
+    kb.row(CallbackButton(text="🗑 Очистить последние 5", payload="admin_clear_5"))
+    kb.row(CallbackButton(text="⬅️ В главное меню", payload="admin_main"))
+    return text, kb
 
 
 def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
@@ -58,26 +87,33 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
             attachments=[get_admin_keyboard().as_markup()],
         )
 
-    @dp.message_callback(AdminPayload.filter())
-    async def handle_admin_callbacks(event: MessageCallback, payload: AdminPayload):
+    @dp.message_callback()
+    async def handle_admin_callbacks(event: MessageCallback):
+        payload = event.callback.payload if event.callback else None
+        if not payload or not payload.startswith("admin_"):
+            await event.answer()
+            return
+
         user_id = event.callback.user.user_id if event.callback.user else None
         if not is_admin(user_id):
             await event.answer(notification="⛔ Нет доступа.")
             return
 
-        action = payload.action
+        action = payload.replace("admin_", "", 1)
+        chat_id = event.message.recipient.chat_id if event.message else None
 
         if action == "close":
-            await event.edit(text="Админ-панель закрыта.", attachments=[])
-            await event.answer()
+            await event.answer(notification="✅ Закрыто")
             return
 
         elif action == "main":
-            await event.edit(
+            await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
                 text="👋 Панель администратора\n\nВыберите нужный раздел:",
                 attachments=[get_admin_keyboard().as_markup()],
             )
-            await event.answer()
             return
 
         elif action == "stats":
@@ -88,95 +124,38 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 f"📅 Уникальных сегодня: {stats['today_users']}\n"
                 f"🔄 Всего запросов: {stats['total_requests']}\n"
             )
-            await event.edit(
+            await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
                 text=text,
                 attachments=[get_admin_keyboard().as_markup()],
             )
-            await event.answer()
             return
 
         elif action == "activity":
             activity = get_recent_activity(50)
-            if not activity:
-                text = "📝 Последние действия:\n\nПусто."
-                await event.edit(
-                    text=text,
-                    attachments=[get_admin_keyboard().as_markup()],
-                )
-            else:
-                lines = []
-                kb = InlineKeyboardBuilder()
-                photo_buttons = []
-
-                for a in activity:
-                    time_str = a['timestamp'][11:19] if a['timestamp'] else "??:??:??"
-                    name = a.get('first_name') or a.get('username') or "Без имени"
-                    act_icon = "📷" if "photo" in (a['action'] or "") else "📝"
-                    details = a.get('details') or "Нет данных"
-
-                    if a.get('file_id'):
-                        lines.append(f"{time_str} | {act_icon} {name[:12]} (Акт #{a['id']})\n  {details}")
-                        photo_buttons.append(
-                            CallbackButton(text=f"📸 #{a['id']}", payload=AdminPayload(action=f"photo_{a['id']}").pack())
-                        )
-                    else:
-                        lines.append(f"{time_str} | {act_icon} {name[:12]}\n  {details}")
-
-                text = "📝 Последние 50 действий:\n\n" + "\n\n".join(lines)
-                if len(text) > 4000:
-                    text = text[:4000] + "\n... (обрезано)"
-
-                for i in range(0, len(photo_buttons), 5):
-                    kb.row(*photo_buttons[i:i + 5])
-
-                kb.row(CallbackButton(text="🗑 Очистить последние 5", payload=AdminPayload(action="clear_5").pack()))
-                kb.row(CallbackButton(text="⬅️ В главное меню", payload=AdminPayload(action="main").pack()))
-
-                await event.edit(text=text, attachments=[kb.as_markup()])
-
+            text, kb = _format_activity_list(activity)
             await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
+                text=text,
+                attachments=[kb.as_markup()],
+            )
             return
 
         elif action == "clear_5":
             delete_last_activities(5)
-            await event.answer(notification="✅ Последние 5 действий удалены!")
+            await event.answer(notification="✅ Удалено!")
             activity = get_recent_activity(50)
-            if not activity:
-                text = "📝 Последние действия:\n\nПусто."
-                await event.edit(
-                    text=text,
-                    attachments=[get_admin_keyboard().as_markup()],
-                )
-            else:
-                lines = []
-                kb = InlineKeyboardBuilder()
-                photo_buttons = []
-
-                for a in activity:
-                    time_str = a['timestamp'][11:19] if a['timestamp'] else "??:??:??"
-                    name = a.get('first_name') or a.get('username') or "Без имени"
-                    act_icon = "📷" if "photo" in (a['action'] or "") else "📝"
-                    details = a.get('details') or "Нет данных"
-
-                    if a.get('file_id'):
-                        lines.append(f"{time_str} | {act_icon} {name[:12]} (Акт #{a['id']})\n  {details}")
-                        photo_buttons.append(
-                            CallbackButton(text=f"📸 #{a['id']}", payload=AdminPayload(action=f"photo_{a['id']}").pack())
-                        )
-                    else:
-                        lines.append(f"{time_str} | {act_icon} {name[:12]}\n  {details}")
-
-                text = "📝 Последние 50 действий:\n\n" + "\n\n".join(lines)
-                if len(text) > 4000:
-                    text = text[:4000] + "\n... (обрезано)"
-
-                for i in range(0, len(photo_buttons), 5):
-                    kb.row(*photo_buttons[i:i + 5])
-
-                kb.row(CallbackButton(text="🗑 Очистить последние 5", payload=AdminPayload(action="clear_5").pack()))
-                kb.row(CallbackButton(text="⬅️ В главное меню", payload=AdminPayload(action="main").pack()))
-
-                await event.edit(text=text, attachments=[kb.as_markup()])
+            text, kb = _format_activity_list(activity)
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
+                text=text,
+                attachments=[kb.as_markup()],
+            )
             return
 
         elif action.startswith("photo_"):
@@ -192,13 +171,18 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 return
 
             kb = InlineKeyboardBuilder()
-            kb.row(CallbackButton(text="⬅️ Назад в действия", payload=AdminPayload(action="activity").pack()))
+            kb.row(CallbackButton(text="⬅️ Назад в действия", payload="admin_activity"))
 
             photo_url = row['file_id']
             text = f"📝 Лог #{act_id}: {row.get('details', '')}\n\n🔗 Фото: {photo_url}"
 
-            await event.edit(text=text, attachments=[kb.as_markup()])
             await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
+                text=text,
+                attachments=[kb.as_markup()],
+            )
             return
 
         elif action == "users":
@@ -216,11 +200,13 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 if len(text) > 4000:
                     text = text[:4000] + "\n... (обрезано)"
 
-            await event.edit(
+            await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
                 text=text,
                 attachments=[get_admin_keyboard().as_markup()],
             )
-            await event.answer()
             return
 
         await event.answer()
