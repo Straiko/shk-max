@@ -109,6 +109,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
             return
 
         chat_ids = get_all_chat_ids()
+        logger.info("Рассылка: найдено %d chat_id", len(chat_ids))
         sent = 0
         for cid in chat_ids:
             try:
@@ -117,8 +118,9 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                     text=text,
                 )
                 sent += 1
-            except Exception:
-                pass
+                logger.info("Рассылка: отправлено в chat_id=%d", cid)
+            except Exception as e:
+                logger.exception("Рассылка: ошибка отправки в chat_id=%d", cid)
 
         chat_id = event.message.recipient.chat_id if event.message else None
         await event.bot.send_message(

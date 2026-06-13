@@ -42,10 +42,10 @@ async def main() -> None:
     dp = Dispatcher()
     limiter = RateLimiter(config.rate_limit_seconds)
 
-    admin.register(dp, config, limiter)
     commands.register(dp, config)
     photo.register(dp, config, limiter)
     barcode.register(dp, config, limiter)
+    admin.register(dp, config, limiter)
 
     logger.info(
         "Rate limit: %dс | Макс. файл: %dMB",
