@@ -10,7 +10,8 @@ from barcode.writer import ImageWriter
 
 from config import Config
 from utils.file_manager import temp_image
-from utils.db import log_activity
+from utils.db import log_activity, get_all_chat_ids
+from handlers.admin import is_broadcast_pending, set_broadcast_pending, is_admin, get_admin_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,31 @@ async def send_barcode_image(bot, chat_id: int, text_to_encode: str) -> None:
 def register(dp: Dispatcher, config: Config, limiter) -> None:
     @dp.message_created(F.message.body.text)
     async def generate_and_send_barcode(event: MessageCreated):
+        if is_broadcast_pending():
+            set_broadcast_pending(False)
+            sender = event.message.sender
+            user_id = sender.user_id if sender else None
+            if not is_admin(user_id):
+                return
+            text = event.message.body.text
+            if not text:
+                return
+            chat_ids = get_all_chat_ids()
+            sent = 0
+            for cid in chat_ids:
+                try:
+                    await event.bot.send_message(chat_id=cid, text=text)
+                    sent += 1
+                except Exception:
+                    pass
+            chat_id = event.chat.chat_id
+            await event.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Рассылка завершена! Отправлено: {sent} из {len(chat_ids)}",
+                attachments=[get_admin_keyboard().as_markup()],
+            )
+            return
+
         text_to_encode = event.message.body.text.strip()
         if not text_to_encode or text_to_encode.startswith("/"):
             return

@@ -17,6 +17,22 @@ from utils.db import (
 logger = logging.getLogger(__name__)
 
 broadcast_pending = False
+ADMIN_USER_ID = None
+
+
+def is_broadcast_pending() -> bool:
+    return broadcast_pending
+
+
+def set_broadcast_pending(value: bool) -> None:
+    global broadcast_pending
+    broadcast_pending = value
+
+
+def is_admin(user_id) -> bool:
+    if not ADMIN_USER_ID or user_id is None:
+        return False
+    return int(user_id) == ADMIN_USER_ID
 
 
 def get_admin_keyboard() -> InlineKeyboardBuilder:
@@ -73,12 +89,8 @@ def _format_activity_list(activity: list[dict]) -> tuple[str, InlineKeyboardBuil
 
 def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
     """Регистрация команды /admin и её кнопок."""
-    global broadcast_pending
-
-    def is_admin(user_id) -> bool:
-        if not config.admin_user_id or user_id is None:
-            return False
-        return int(user_id) == config.admin_user_id
+    global broadcast_pending, ADMIN_USER_ID
+    ADMIN_USER_ID = config.admin_user_id
 
     @dp.message_created(Command("admin"))
     @rate_limit(limiter)
@@ -90,43 +102,6 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
 
         await event.message.answer(
             "👋 Панель администратора\n\nВыберите нужный раздел:",
-            attachments=[get_admin_keyboard().as_markup()],
-        )
-
-    @dp.message_created(F.message.body.text)
-    async def handle_broadcast_text(event: MessageCreated):
-        global broadcast_pending
-        if not broadcast_pending:
-            return
-        broadcast_pending = False
-        sender = event.message.sender
-        user_id = sender.user_id if sender else None
-        if not is_admin(user_id):
-            return
-
-        text = event.message.body.text
-        if not text:
-            return
-
-        chat_ids = get_all_chat_ids()
-        logger.info("Рассылка: найдено %d chat_id", len(chat_ids))
-        sent = 0
-        for cid in chat_ids:
-            try:
-                await event.bot.send_message(
-                    chat_id=cid,
-                    text=text,
-                )
-                sent += 1
-                logger.info("Рассылка: отправлено в chat_id=%d", cid)
-            except Exception as e:
-                logger.exception("Рассылка: ошибка отправки в chat_id=%d", cid)
-
-        chat_id = event.message.recipient.chat_id if event.message else None
-        await event.bot.send_message(
-            chat_id=chat_id,
-            user_id=user_id,
-            text=f"✅ Рассылка завершена! Отправлено: {sent} из {len(chat_ids)}",
             attachments=[get_admin_keyboard().as_markup()],
         )
 
