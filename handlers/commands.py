@@ -31,7 +31,7 @@ HELP_TEXT = (
     "/myid — твой user_id\n"
     "/help — эта справка\n\n"
     "📱 Также доступен в:\n"
-    "Telegram: @Ozonbratik_bot\n"
+    "Telegram: https://t.me/Ozonbratik_bot\n"
     "VK: https://vk.com/club239550562"
 )
 
