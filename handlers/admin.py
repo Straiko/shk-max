@@ -11,10 +11,12 @@ from config import Config
 from utils.rate_limiter import RateLimiter, rate_limit
 from utils.db import (
     get_stats, get_recent_activity, get_users,
-    get_activity_by_id, delete_last_activities
+    get_activity_by_id, delete_last_activities, get_all_user_ids
 )
 
 logger = logging.getLogger(__name__)
+
+broadcast_pending = False
 
 
 def get_admin_keyboard() -> InlineKeyboardBuilder:
@@ -26,6 +28,9 @@ def get_admin_keyboard() -> InlineKeyboardBuilder:
     )
     kb.row(
         CallbackButton(text="👥 Пользователи", payload="admin_users"),
+        CallbackButton(text="📢 Рассылка", payload="admin_broadcast"),
+    )
+    kb.row(
         CallbackButton(text="❌ Закрыть", payload="admin_close"),
     )
     return kb
@@ -68,6 +73,7 @@ def _format_activity_list(activity: list[dict]) -> tuple[str, InlineKeyboardBuil
 
 def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
     """Регистрация команды /admin и её кнопок."""
+    global broadcast_pending
 
     def is_admin(user_id) -> bool:
         if not config.admin_user_id or user_id is None:
@@ -84,6 +90,42 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
 
         await event.message.answer(
             "👋 Панель администратора\n\nВыберите нужный раздел:",
+            attachments=[get_admin_keyboard().as_markup()],
+        )
+
+    @dp.message_created(F.message.body.text)
+    async def handle_broadcast_text(event: MessageCreated):
+        global broadcast_pending
+        if not broadcast_pending:
+            return
+        broadcast_pending = False
+        sender = event.message.sender
+        user_id = sender.user_id if sender else None
+        if not is_admin(user_id):
+            return
+
+        text = event.message.body.text
+        if not text:
+            return
+
+        user_ids = get_all_user_ids()
+        sent = 0
+        for uid in user_ids:
+            try:
+                await event.bot.send_message(
+                    chat_id=None,
+                    user_id=uid,
+                    text=text,
+                )
+                sent += 1
+            except Exception:
+                pass
+
+        chat_id = event.message.recipient.chat_id if event.message else None
+        await event.bot.send_message(
+            chat_id=chat_id,
+            user_id=user_id,
+            text=f"✅ Рассылка завершена! Отправлено: {sent} из {len(user_ids)}",
             attachments=[get_admin_keyboard().as_markup()],
         )
 
@@ -206,6 +248,17 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 user_id=user_id,
                 text=text,
                 attachments=[get_admin_keyboard().as_markup()],
+            )
+            return
+
+        elif action == "broadcast":
+            global broadcast_pending
+            broadcast_pending = True
+            await event.answer()
+            await event.bot.send_message(
+                chat_id=chat_id,
+                user_id=user_id,
+                text="📢 Отправьте текст рассылки\n\nСледующее сообщение будет разослано всем пользователям:",
             )
             return
 
