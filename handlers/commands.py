@@ -40,6 +40,14 @@ def register(dp: Dispatcher, config: Config) -> None:
     @dp.bot_started()
     async def handle_bot_started(event: BotStarted):
         await bot_send(event, HELP_TEXT)
+        chat_id = event.chat_id
+        user_obj = type('User', (), {
+            'id': 0,
+            'username': None,
+            'first_name': None,
+            'last_name': None,
+        })()
+        log_activity(user_obj, "command", "bot_started", chat_id=chat_id)
 
     @dp.message_created(Command("version"))
     async def send_version(event: MessageCreated):
