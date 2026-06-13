@@ -11,7 +11,7 @@ from config import Config
 from utils.rate_limiter import RateLimiter, rate_limit
 from utils.db import (
     get_stats, get_recent_activity, get_users,
-    get_activity_by_id, delete_last_activities, get_all_user_ids
+    get_activity_by_id, delete_last_activities, get_all_chat_ids
 )
 
 logger = logging.getLogger(__name__)
@@ -108,13 +108,12 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
         if not text:
             return
 
-        user_ids = get_all_user_ids()
+        chat_ids = get_all_chat_ids()
         sent = 0
-        for uid in user_ids:
+        for cid in chat_ids:
             try:
                 await event.bot.send_message(
-                    chat_id=None,
-                    user_id=uid,
+                    chat_id=cid,
                     text=text,
                 )
                 sent += 1
@@ -125,7 +124,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
         await event.bot.send_message(
             chat_id=chat_id,
             user_id=user_id,
-            text=f"✅ Рассылка завершена! Отправлено: {sent} из {len(user_ids)}",
+            text=f"✅ Рассылка завершена! Отправлено: {sent} из {len(chat_ids)}",
             attachments=[get_admin_keyboard().as_markup()],
         )
 

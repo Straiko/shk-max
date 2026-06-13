@@ -127,7 +127,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                     'first_name': getattr(sender, 'first_name', None),
                     'last_name': getattr(sender, 'last_name', None),
                 })()
-                log_activity(user_obj, "photo", f"Найдено: {chosen}", file_id=photo_url)
+                log_activity(user_obj, "photo", f"Найдено: {chosen}", file_id=photo_url, chat_id=chat_id)
 
             except Exception as e:
                 await event.message.answer("Ошибка при обработке фото.")

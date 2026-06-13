@@ -59,7 +59,7 @@ def register(dp: Dispatcher, config: Config) -> None:
             'first_name': getattr(sender, 'first_name', None),
             'last_name': getattr(sender, 'last_name', None),
         })()
-        log_activity(user_obj, "command", "/start или /help")
+        log_activity(user_obj, "command", "/start или /help", chat_id=event.chat_id)
 
     @dp.message_created(Command("myid"))
     async def send_myid(event: MessageCreated):

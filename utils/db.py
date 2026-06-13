@@ -16,6 +16,7 @@ def init_db() -> None:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     user_id INTEGER PRIMARY KEY,
+                    chat_id INTEGER,
                     username TEXT,
                     first_name TEXT,
                     last_name TEXT,
@@ -41,25 +42,30 @@ def init_db() -> None:
                 conn.execute("ALTER TABLE activity ADD COLUMN file_id TEXT")
             except sqlite3.OperationalError:
                 pass
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN chat_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
             conn.commit()
 
 
-def log_activity(user: Any, action: str, details: str = "", file_id: str | None = None) -> None:
+def log_activity(user: Any, action: str, details: str = "", file_id: str | None = None, chat_id: int | None = None) -> None:
     """Логирование действия пользователя."""
     tz_msk = datetime.timezone(datetime.timedelta(hours=3))
     now = datetime.datetime.now(tz_msk).isoformat()
     with db_lock:
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute("""
-                INSERT INTO users (user_id, username, first_name, last_name, last_seen, request_count)
-                VALUES (?, ?, ?, ?, ?, 1)
+                INSERT INTO users (user_id, chat_id, username, first_name, last_name, last_seen, request_count)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
                 ON CONFLICT(user_id) DO UPDATE SET
+                    chat_id=COALESCE(excluded.chat_id, chat_id),
                     username=excluded.username,
                     first_name=excluded.first_name,
                     last_name=excluded.last_name,
                     last_seen=excluded.last_seen,
                     request_count=request_count+1
-            """, (user.id, user.username, user.first_name, user.last_name, now))
+            """, (user.id, chat_id, user.username, user.first_name, user.last_name, now))
 
             conn.execute("""
                 INSERT INTO activity (user_id, action, details, file_id, timestamp)
@@ -156,4 +162,12 @@ def get_all_user_ids() -> list[int]:
     with db_lock:
         with sqlite3.connect(DB_PATH) as conn:
             rows = conn.execute("SELECT user_id FROM users").fetchall()
+            return [row[0] for row in rows]
+
+
+def get_all_chat_ids() -> list[int]:
+    """Получить все chat_id для рассылки."""
+    with db_lock:
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute("SELECT chat_id FROM users WHERE chat_id IS NOT NULL").fetchall()
             return [row[0] for row in rows]

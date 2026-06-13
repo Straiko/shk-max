@@ -56,6 +56,6 @@ def register(dp: Dispatcher, config: Config, limiter) -> None:
             'first_name': getattr(sender, 'first_name', None),
             'last_name': getattr(sender, 'last_name', None),
         })()
-        log_activity(user_obj, "barcode", f"Создан: {text_to_encode}")
+        log_activity(user_obj, "barcode", f"Создан: {text_to_encode}", chat_id=chat_id)
 
     logger.info("Обработчик генерации штрих-кодов зарегистрирован")
