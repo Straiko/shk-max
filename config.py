@@ -26,9 +26,9 @@ def load_config() -> Config:
     except ImportError:
         logger.warning("python-dotenv не установлен")
 
-    token = os.getenv("MAX_BOT_TOKEN")
+    token = os.getenv("MAX_BOT_TOKEN") or os.getenv("BOT_TOKEN")
     if not token:
-        logger.critical("MAX_BOT_TOKEN не задан! Создайте .env файл (см. .env.example)")
+        logger.critical("MAX_BOT_TOKEN или BOT_TOKEN не задан! Создайте .env файл (см. .env.example)")
         sys.exit(1)
 
     admin_id_str = os.getenv("ADMIN_USER_ID")
