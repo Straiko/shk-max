@@ -100,7 +100,7 @@ def register(dp: Dispatcher, config: Config, limiter: RateLimiter) -> None:
                 decoded_objects = scan_barcodes(img)
                 barcode_codes = [obj.text for obj in decoded_objects]
 
-                ocr_codes = scan_text_ocr(str(photo_path), config.ocr_api_key)
+                ocr_codes = scan_text_ocr(str(photo_path), config.yandex_api_key)
 
                 codes = list(dict.fromkeys(barcode_codes + ocr_codes))
 

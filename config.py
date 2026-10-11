@@ -15,6 +15,8 @@ class Config:
     max_file_size_mb: int = 20
     admin_user_id: int | None = None
     version: str = "3.1.0"
+    yandex_api_key: str | None = None
+    yandex_folder_id: str | None = None
 
 
 def load_config() -> Config:
@@ -37,4 +39,6 @@ def load_config() -> Config:
         rate_limit_seconds=int(os.getenv("RATE_LIMIT_SECONDS", "2")),
         max_file_size_mb=int(os.getenv("MAX_FILE_SIZE_MB", "20")),
         admin_user_id=admin_user_id,
+        yandex_api_key=os.getenv("YANDEX_API_KEY"),
+        yandex_folder_id=os.getenv("YANDEX_FOLDER_ID"),
     )
