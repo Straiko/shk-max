@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Config:
+    bot_token: str
     ocr_api_key: str = "helloworld"
     rate_limit_seconds: int = 2
     max_file_size_mb: int = 20
@@ -26,7 +27,8 @@ def load_config() -> Config:
     except ImportError:
         logger.warning("python-dotenv не установлен")
 
-    token = os.getenv("MAX_BOT_TOKEN") or os.getenv("BOT_TOKEN")
+    raw_token = os.getenv("MAX_BOT_TOKEN") or os.getenv("BOT_TOKEN")
+    token = raw_token.strip() if raw_token else ""
     if not token:
         logger.critical("MAX_BOT_TOKEN или BOT_TOKEN не задан! Создайте .env файл (см. .env.example)")
         sys.exit(1)
@@ -35,6 +37,7 @@ def load_config() -> Config:
     admin_user_id = int(admin_id_str) if admin_id_str else None
 
     return Config(
+        bot_token=token,
         ocr_api_key=os.getenv("OCR_API_KEY", "helloworld"),
         rate_limit_seconds=int(os.getenv("RATE_LIMIT_SECONDS", "2")),
         max_file_size_mb=int(os.getenv("MAX_FILE_SIZE_MB", "20")),

@@ -38,7 +38,7 @@ async def main() -> None:
 
     init_db()
 
-    bot = Bot()
+    bot = Bot(token=config.bot_token)
     dp = Dispatcher()
     limiter = RateLimiter(config.rate_limit_seconds)
 
